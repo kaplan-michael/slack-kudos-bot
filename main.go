@@ -4,6 +4,14 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	l "log"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
+
 	"github.com/charmbracelet/log"
 	"github.com/kaplan-michael/slack-kudos/pkg/config"
 	"github.com/kaplan-michael/slack-kudos/pkg/database"
@@ -12,13 +20,6 @@ import (
 	"github.com/kaplan-michael/slack-kudos/pkg/utils"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
-	"net/http"
-	l "log"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
-	"time"
 )
 
 // WorkspaceClient holds the socket mode client for a workspace
@@ -87,7 +88,7 @@ func (wm *WorkspaceManager) AddWorkspace(creds oauth2.WorkspaceCredentials) erro
 			// We can't modify the Request.Context directly as it doesn't exist
 			// Instead, we'll store team ID in a workspace map in memory
 			// and look it up when needed from the API endpoints
-			
+
 			// Dispatch events
 			if err := wm.dispatcher.Dispatch(&evt, client); err != nil {
 				log.Warnf("Error processing event for workspace %s: %s\n", creds.TeamID, err)
@@ -131,27 +132,27 @@ func (wm *WorkspaceManager) GetWorkspaceClient(teamID string) (*WorkspaceClient,
 func main() {
 	// Initialize configuration
 	config.Init()
-	
+
 	// Initialize database
 	err := database.InitDB()
 	if err != nil {
 		log.Fatalf("Error initializing database: %s\n", err)
 	}
-	
+
 	// Initialize the central dispatcher
 	disp := dispatcher.NewDispatcher()
-	
+
 	// Create workspace manager for multi-tenant support
 	workspaceManager := NewWorkspaceManager(disp)
-	
+
 	// Create HTTP server for OAuth flow
 	oauthHandler := oauth2.NewOAuthHandler()
-	
+
 	// Set up HTTP routes
 	mux := http.NewServeMux()
 	mux.HandleFunc("/oauth/start", oauthHandler.StartOAuth)
 	mux.HandleFunc("/oauth/callback", oauthHandler.OAuthCallback)
-	
+
 	// Create public landing page and installation instructions
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
@@ -202,13 +203,13 @@ func main() {
 						
 						<div class="features">
 							<div class="feature">
-								<strong>👏 Give kudos</strong> - Mention a user with "++" to give them kudos (e.g., "@user ++")
+								<strong>Give kudos</strong> - Mention a user with "++" to give them kudos (e.g., "@user ++")
 							</div>
 							<div class="feature">
-								<strong>🏆 View leaderboard</strong> - Use the "/kudos" command to see who's received the most kudos
+								<strong>View leaderboard</strong> - Use the "/kudos" command to see who's received the most kudos
 							</div>
 							<div class="feature">
-								<strong>🚀 Easy to use</strong> - No configuration needed, just install and start recognizing your teammates
+								<strong>Easy to use</strong> - No configuration needed, just install and start recognizing your teammates
 							</div>
 						</div>
 						
@@ -218,13 +219,13 @@ func main() {
 			</html>
 		`)
 	})
-	
+
 	// Create HTTP server
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%d", config.AppConfig.ServerPort),
 		Handler: mux,
 	}
-	
+
 	// Start HTTP/HTTPS server in a goroutine
 	go func() {
 		if config.AppConfig.Debug {
@@ -234,7 +235,7 @@ func main() {
 			if err != nil {
 				log.Fatalf("Failed to generate self-signed certificate: %v", err)
 			}
-			
+
 			log.Info("=========================================================")
 			log.Infof("HTTPS server listening on port %d", config.AppConfig.ServerPort)
 			log.Infof("Base URL: %s", config.AppConfig.BaseURL)
@@ -245,7 +246,7 @@ func main() {
 			log.Info("   2. Click 'Advanced' and then 'Proceed anyway' to accept the certificate")
 			log.Info("   3. Then try the Slack OAuth flow again")
 			log.Info("=========================================================")
-			
+
 			if err := srv.ListenAndServeTLS(certPath, keyPath); err != nil && err != http.ErrServerClosed {
 				log.Fatalf("Error starting HTTPS server: %v", err)
 			}
@@ -256,19 +257,19 @@ func main() {
 			log.Infof("Base URL: %s", config.AppConfig.BaseURL)
 			log.Infof("Redirect URI: %s", config.AppConfig.SlackRedirectURI)
 			log.Info("=========================================================")
-			
+
 			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 				log.Fatalf("Error starting HTTP server: %v", err)
 			}
 		}
 	}()
-	
+
 	// Load all workspaces from database
 	workspaces, err := oauth2.GetAllWorkspaceCredentials()
 	if err != nil && err != sql.ErrNoRows {
 		log.Errorf("Error loading workspaces: %v", err)
 	}
-	
+
 	// Add each workspace
 	for _, workspace := range workspaces {
 		// Skip adding workspaces if there are issues with tokens
@@ -276,28 +277,28 @@ func main() {
 			log.Warnf("Skipping workspace %s due to missing access token", workspace.TeamID)
 			continue
 		}
-		
+
 		// Log token info for debugging
 		if config.AppConfig.Debug {
-			log.Infof("Workspace %s (%s) token: %s...", 
-				workspace.TeamName, 
-				workspace.TeamID, 
-				workspace.AccessToken[:10] + "..." + workspace.AccessToken[len(workspace.AccessToken)-5:])
+			log.Infof("Workspace %s (%s) token: %s...",
+				workspace.TeamName,
+				workspace.TeamID,
+				workspace.AccessToken[:10]+"..."+workspace.AccessToken[len(workspace.AccessToken)-5:])
 		}
-		
+
 		// Check if token needs refreshing
 		if err := oauth2.RefreshTokenIfNeeded(workspace.TeamID); err != nil {
 			log.Warnf("Failed to refresh token for workspace %s: %v", workspace.TeamID, err)
 			continue
 		}
-		
+
 		// Get refreshed credentials
 		refreshedCreds, err := oauth2.GetWorkspaceCredentials(workspace.TeamID)
 		if err != nil {
 			log.Warnf("Failed to get refreshed credentials for workspace %s: %v", workspace.TeamID, err)
 			continue
 		}
-		
+
 		// Add the workspace
 		if err := workspaceManager.AddWorkspace(refreshedCreds); err != nil {
 			log.Warnf("Failed to add workspace %s: %v", workspace.TeamID, err)
@@ -313,29 +314,29 @@ func main() {
 			}
 		}
 	}
-	
+
 	log.Infof("Bot is running with %d workspaces...", len(workspaces))
-	
+
 	// Register webhook handler for Slack events if needed
 	mux.HandleFunc("/slack/events", func(w http.ResponseWriter, r *http.Request) {
 		// Handle Slack events API requests
 		// This is needed if you want to use Events API instead of Socket Mode
 		w.WriteHeader(http.StatusOK)
 	})
-	
+
 	// Graceful shutdown
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	
+
 	log.Info("Shutting down...")
-	
+
 	// Shutdown HTTP server
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Errorf("Server forced to shutdown: %v", err)
 	}
-	
+
 	log.Info("Server stopped")
 }

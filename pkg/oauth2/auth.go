@@ -152,7 +152,7 @@ func (h *OAuthHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 			</head>
 			<body>
 				<div class="container">
-					<h1>Installation Successful! 🎉</h1>
+					<h1>Installation Successful!</h1>
 					<p>Kudos bot has been successfully installed to your workspace: <strong>%s</strong></p>
 					
 					<h2>Next Steps:</h2>
