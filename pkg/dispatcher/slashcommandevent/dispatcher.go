@@ -2,6 +2,7 @@ package slashcommandevent
 
 import (
 	"fmt"
+
 	"github.com/kaplan-michael/slack-kudos/pkg/handler/commands"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"

@@ -2,13 +2,14 @@ package commands
 
 import (
 	"fmt"
+	"regexp"
+	"strconv"
+	"strings"
+
 	"github.com/charmbracelet/log"
 	"github.com/kaplan-michael/slack-kudos/pkg/database"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/socketmode"
-	"regexp"
-	"strconv"
-	"strings"
 )
 
 func NewKudosHandler() *RegexCommandHandler {
@@ -60,7 +61,7 @@ func KudosCommand(client *socketmode.Client, evt *socketmode.Event) error {
 			}
 			return nil
 		}
-		
+
 		// Other errors
 		msg := "Failed to retrieve top kudos users."
 		_, _, err = client.PostMessage(cmd.ChannelID, slack.MsgOptionText(msg, false))
@@ -106,12 +107,12 @@ func GetTopKudosUsers(teamID string, limit int) ([]KudosUser, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error checking workspace: %w", err)
 	}
-	
+
 	// If the workspace doesn't exist in our database, we can't get kudos yet
 	if count == 0 {
 		return nil, fmt.Errorf("workspace %s not found in database", teamID)
 	}
-	
+
 	// Query workspace_kudos table for multi-tenant support
 	rows, err := database.DB.Query(`
         SELECT user_id, count 

@@ -4,32 +4,34 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"github.com/kaplan-michael/slack-kudos/pkg/config"
-	"github.com/kaplan-michael/slack-kudos/pkg/database"
-	"github.com/slack-go/slack"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/slack-go/slack"
+
+	"github.com/kaplan-michael/slack-kudos/pkg/config"
+	"github.com/kaplan-michael/slack-kudos/pkg/database"
 )
 
 // WorkspaceCredentials represents the OAuth tokens for a Slack workspace
 type WorkspaceCredentials struct {
-	TeamID        string    `json:"team_id"`
-	TeamName      string    `json:"team_name"`
-	AccessToken   string    `json:"access_token"`
-	BotUserID     string    `json:"bot_user_id"`
-	Scopes        string    `json:"scopes"`
-	ExpiresAt     time.Time `json:"expires_at,omitempty"`
-	RefreshToken  string    `json:"refresh_token,omitempty"`
-	LastUpdated   time.Time `json:"last_updated"`
+	TeamID       string    `json:"team_id"`
+	TeamName     string    `json:"team_name"`
+	AccessToken  string    `json:"access_token"`
+	BotUserID    string    `json:"bot_user_id"`
+	Scopes       string    `json:"scopes"`
+	ExpiresAt    time.Time `json:"expires_at,omitempty"`
+	RefreshToken string    `json:"refresh_token,omitempty"`
+	LastUpdated  time.Time `json:"last_updated"`
 }
 
 // OAuthHandler handles the OAuth flow endpoints
 type OAuthHandler struct {
-	clientID      string
-	clientSecret  string
-	redirectURI   string
-	scopes        []string
+	clientID     string
+	clientSecret string
+	redirectURI  string
+	scopes       []string
 }
 
 // NewOAuthHandler creates a new OAuth handler
@@ -39,12 +41,12 @@ func NewOAuthHandler() *OAuthHandler {
 		clientSecret: config.AppConfig.SlackClientSecret,
 		redirectURI:  config.AppConfig.SlackRedirectURI,
 		scopes: []string{
-			"channels:history", 
-			"channels:read", 
-			"chat:write", 
+			"channels:history",
+			"channels:read",
+			"chat:write",
 			"commands",
-			"groups:history", 
-			"im:history", 
+			"groups:history",
+			"im:history",
 			"users:read",
 		},
 	}
@@ -87,12 +89,12 @@ func (h *OAuthHandler) OAuthCallback(w http.ResponseWriter, r *http.Request) {
 
 	// Store the workspace information in the database
 	creds := WorkspaceCredentials{
-		TeamID:        response.Team.ID,
-		TeamName:      response.Team.Name,
-		AccessToken:   response.AccessToken,
-		BotUserID:     response.BotUserID,
-		Scopes:        response.Scope,
-		LastUpdated:   time.Now(),
+		TeamID:      response.Team.ID,
+		TeamName:    response.Team.Name,
+		AccessToken: response.AccessToken,
+		BotUserID:   response.BotUserID,
+		Scopes:      response.Scope,
+		LastUpdated: time.Now(),
 	}
 
 	// If token is refreshable, store refresh token and expiry
@@ -206,7 +208,7 @@ func SaveWorkspaceCredentials(creds WorkspaceCredentials) error {
 		creds.RefreshToken,
 		time.Now(),
 	)
-	
+
 	return err
 }
 
@@ -222,7 +224,7 @@ func GetWorkspaceCredentials(teamID string) (WorkspaceCredentials, error) {
 		FROM workspaces 
 		WHERE team_id = ?
 	`
-	
+
 	err := database.DB.QueryRow(query, teamID).Scan(
 		&creds.TeamID,
 		&creds.TeamName,
@@ -233,7 +235,7 @@ func GetWorkspaceCredentials(teamID string) (WorkspaceCredentials, error) {
 		&creds.RefreshToken,
 		&creds.LastUpdated,
 	)
-	
+
 	if err != nil {
 		return creds, fmt.Errorf("failed to get workspace: %w", err)
 	}
@@ -258,7 +260,7 @@ func GetAllWorkspaceCredentials() ([]WorkspaceCredentials, error) {
 		       scopes, expires_at, refresh_token, last_updated 
 		FROM workspaces
 	`
-	
+
 	rows, err := database.DB.Query(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query workspaces: %w", err)
@@ -280,7 +282,7 @@ func GetAllWorkspaceCredentials() ([]WorkspaceCredentials, error) {
 			&creds.RefreshToken,
 			&creds.LastUpdated,
 		)
-		
+
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan workspace row: %w", err)
 		}
@@ -333,7 +335,7 @@ func RefreshTokenIfNeeded(teamID string) error {
 	creds.AccessToken = resp.AccessToken
 	creds.ExpiresAt = time.Now().Add(time.Duration(resp.ExpiresIn) * time.Second)
 	creds.LastUpdated = time.Now()
-	
+
 	if resp.RefreshToken != "" {
 		creds.RefreshToken = resp.RefreshToken
 	}

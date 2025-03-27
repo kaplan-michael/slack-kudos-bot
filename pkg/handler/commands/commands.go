@@ -1,8 +1,9 @@
 package commands
 
 import (
-	"github.com/slack-go/slack/socketmode"
 	"regexp"
+
+	"github.com/slack-go/slack/socketmode"
 )
 
 // CommandHandler defines the interface for all message handlers.

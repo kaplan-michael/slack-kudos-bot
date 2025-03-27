@@ -21,7 +21,7 @@ func GenerateSelfSignedCert(hostname string) (certPath, keyPath string, err erro
 	tempDir := os.TempDir()
 	certPath = tempDir + "/server.crt"
 	keyPath = tempDir + "/server.key"
-	
+
 	log.Printf("Generating self-signed certificate in %s for host %s", tempDir, hostname)
 
 	// Generate a private key
@@ -47,12 +47,12 @@ func GenerateSelfSignedCert(hostname string) (certPath, keyPath string, err erro
 	if strings.Contains(domain, ":") {
 		domain = strings.Split(domain, ":")[0]
 	}
-	
+
 	// Default to localhost if no valid domain
 	if domain == "" {
 		domain = "localhost"
 	}
-	
+
 	// Prepare DNS names
 	dnsNames := []string{domain}
 	if domain != "localhost" {

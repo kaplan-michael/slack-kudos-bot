@@ -1,9 +1,10 @@
 package events
 
 import (
+	"regexp"
+
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
-	"regexp"
 )
 
 // MessageHandler defines the interface for all message handlers.

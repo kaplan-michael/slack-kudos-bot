@@ -2,12 +2,13 @@ package events
 
 import (
 	"fmt"
+	"regexp"
+
 	"github.com/charmbracelet/log"
 	"github.com/kaplan-michael/slack-kudos/pkg/database"
 	"github.com/slack-go/slack"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
-	"regexp"
 )
 
 func NewKudosHandler() *RegexMessageHandler {
@@ -26,7 +27,7 @@ func handleKudos(client *socketmode.Client, msgEvent *slackevents.MessageEvent) 
 		log.Warnf("Error getting team ID from auth test: %v", err)
 		return fmt.Errorf("could not get team info: %w", err)
 	}
-	
+
 	teamID := authInfo.TeamID
 	if teamID == "" {
 		log.Warn("Could not determine team ID for kudos event, skipping")
@@ -68,7 +69,7 @@ func extractUserID(text string) string {
 // incrementKudosCount increments the kudos count for the given user and returns the new count.
 func incrementKudosCount(teamID, userID string) (int, error) {
 	var newCount int
-	
+
 	// First check if workspace exists (to avoid foreign key constraint error)
 	var count int
 	err := database.DB.QueryRow(`SELECT COUNT(*) FROM workspaces WHERE team_id = ?`, teamID).Scan(&count)
@@ -76,13 +77,13 @@ func incrementKudosCount(teamID, userID string) (int, error) {
 		log.Warnf("Error checking if workspace exists: %v", err)
 		return 0, fmt.Errorf("error checking workspace: %w", err)
 	}
-	
+
 	// If the workspace doesn't exist in our database, we can't record kudos yet
 	if count == 0 {
 		log.Warnf("Workspace %s not found in database. Make sure OAuth setup is complete.", teamID)
 		return 0, fmt.Errorf("workspace %s not found in database", teamID)
 	}
-	
+
 	// Using workspace_kudos table for multi-tenant support
 	err = database.DB.QueryRow(`
         INSERT INTO workspace_kudos (team_id, user_id, count) 
@@ -91,7 +92,7 @@ func incrementKudosCount(teamID, userID string) (int, error) {
         DO UPDATE SET count = count + 1 
         WHERE team_id = ? AND user_id = ?
         RETURNING count;`, teamID, userID, teamID, userID).Scan(&newCount)
-	
+
 	if err != nil {
 		log.Warnf("Failed to increment and fetch kudos count for user %s in workspace %s: %v", userID, teamID, err)
 		return 0, err

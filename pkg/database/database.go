@@ -3,10 +3,11 @@ package database
 import (
 	"database/sql"
 	"fmt"
-	"github.com/kaplan-michael/slack-kudos/pkg/config"
 	"log"
 	"os"
 	"time"
+
+	"github.com/kaplan-michael/slack-kudos/pkg/config"
 
 	_ "github.com/mattn/go-sqlite3"
 )
@@ -162,7 +163,10 @@ func runMigrations() error {
 		// Run migration SQL
 		_, err = tx.Exec(migration.SQL)
 		if err != nil {
-			tx.Rollback()
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				log.Printf("Failed to rollback transaction: %v", rollbackErr)
+			}
 			return fmt.Errorf("failed to run migration %d: %w", migration.Version, err)
 		}
 
@@ -174,7 +178,10 @@ func runMigrations() error {
 			time.Now(),
 		)
 		if err != nil {
-			tx.Rollback()
+			rollbackErr := tx.Rollback()
+			if rollbackErr != nil {
+				log.Printf("Failed to rollback transaction: %v", rollbackErr)
+			}
 			return fmt.Errorf("failed to insert migration record: %w", err)
 		}
 

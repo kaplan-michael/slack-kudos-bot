@@ -38,7 +38,7 @@ func Init() {
 	if AppConfig.SlackClientSecret == "" {
 		missingVars = append(missingVars, "KUDOS_SLACK_CLIENT_SECRET")
 	}
-	
+
 	// App-level token for Socket Mode
 	AppConfig.SlackAppToken = os.Getenv("KUDOS_SLACK_APP_TOKEN")
 	if AppConfig.SlackAppToken == "" {
@@ -50,7 +50,7 @@ func Init() {
 	if AppConfig.BaseURL == "" {
 		AppConfig.BaseURL = "http://localhost:8080"
 	}
-	
+
 	// Slack redirect URI
 	AppConfig.SlackRedirectURI = os.Getenv("KUDOS_SLACK_REDIRECT_URI")
 	if AppConfig.SlackRedirectURI == "" {
@@ -71,7 +71,7 @@ func Init() {
 			AppConfig.ServerPort = port
 		}
 	}
-	
+
 	// Debug mode
 	debugEnv := os.Getenv("KUDOS_DEBUG")
 	AppConfig.Debug = debugEnv == "true" || debugEnv == "1" || debugEnv == "yes"

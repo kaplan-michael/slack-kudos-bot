@@ -2,6 +2,7 @@ package eventsapievent
 
 import (
 	"fmt"
+
 	"github.com/kaplan-michael/slack-kudos/pkg/handler/events"
 	"github.com/slack-go/slack/slackevents"
 	"github.com/slack-go/slack/socketmode"
